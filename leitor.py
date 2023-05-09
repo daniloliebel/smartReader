@@ -3,7 +3,7 @@ import os
 import re
 import json
 
-pasta = 'C:\\kmm\\leitorPDF_Python\\arquivos'
+pasta = 'arquivos'
 
 
 def extrairTextoAbaixo(linhas, regexBusca, regexValor, posicaoValor):
