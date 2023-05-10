@@ -1,11 +1,13 @@
+from turtle import width
 from PyPDF2 import PdfReader
 import os
 import re
 import json
+import streamlit as st
+from io import StringIO
+import pandas as pd
 
-pasta = 'arquivos'
-
-
+#pasta = 'arquivos'
 def extrairTextoAbaixo(linhas, regexBusca, regexValor, posicaoValor):
 
     for line_num in range(len(linhas)):
@@ -40,13 +42,7 @@ def extrairTabelaMercadorias(linhas, inicioTabela, fimTabela):
         linhasTabela.append(linhas[linha])
     return linhasTabela
 
-#arquivos = os.listdir(pasta)
-arquivos = [pdf for pdf in os.listdir(pasta) if pdf.endswith('.pdf')]
-
-# Itera sobre a lista de arquivos
-for arquivo in arquivos:
-    caminho_arquivo = os.path.join(pasta, arquivo)
-    reader = PdfReader(caminho_arquivo)
+def processarPdfGenial(nomeArquivo, reader):
     pdf_text = ''
     for page_num in range(len(reader.pages)):
         page = reader.pages[page_num]
@@ -54,7 +50,12 @@ for arquivo in arquivos:
 
     # dividir o texto em uma lista de linhas
     lines = pdf_text.splitlines()
-    
+    cnpjCorretora = extrairTextoAbaixo(lines, r'^C.N.P.J. Corretora', r'(\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$)', 0).strip()
+    if cnpjCorretora != '27.652.684/0001-62':
+        retornoErro = {
+            "Mensagem": "O arquivo PDF deve ser da corretora Genial"
+        }
+        return retornoErro
     tabela = extrairTabelaMercadorias(lines, r'^C/V Mercadoria', r'Venda disponível')
     tabelaArray = []
     for linhaTabela in tabela:
@@ -116,8 +117,7 @@ for arquivo in arquivos:
     #print(assessor)
     dataPregao = extrairTextoAbaixo(lines, r'Data pregão', r'(\d{2}\/\d{2}\/\d{4})', 0)
     #print(dataPregao)
-    infosNota = {
-        "arquivo": arquivo,
+    infosNota = {"principal" : {
         "cnpjCorretora": cnpjCorretora,
         "numeroCorretora": numeroCorretora,
         "numeroNota": numeroNota,
@@ -130,14 +130,29 @@ for arquivo in arquivos:
         "valorNegocios": valorNegocios,
         "taxasBMF": taxasBMF,
         "totalDespesas": totalDespesas,
-        "totalLiquido": totalLiquido,
-        "tabelaValores": tabelaArray
+        "totalLiquido": totalLiquido
+    },
+    "tabelaValores": tabelaArray
     }
     print(infosNota)
-    print(infosNota.get('valorNegocios'))
-    print(infosNota.get('irrf') + infosNota.get('valorNegocios'))
+    #print(infosNota.get('valorNegocios'))
+    #print(infosNota.get('irrf') + infosNota.get('valorNegocios'))
     totalValorOperacao = 0
-    for linhaTabela in infosNota.get('tabelaValores'):
+    for linhaTabela in tabelaArray:
         totalValorOperacao += linhaTabela.get('valorOperacao')
 
     print(totalValorOperacao)
+    return infosNota
+
+# Itera sobre a lista de arquivos
+uploaded_files = st.file_uploader("Escolha o(s) PDF a ser(em) processado(s)", type=['pdf'], accept_multiple_files=True)
+
+if uploaded_files:
+    for file in uploaded_files:
+        reader = PdfReader(file)
+        pdfProcessado = processarPdfGenial(file.name, reader)
+        dfPrincipal = pd.json_normalize(pdfProcessado.get('principal'))
+        st.text(file.name)
+        st.dataframe(dfPrincipal)
+        df = pd.json_normalize(pdfProcessado.get('tabelaValores'))
+        st.dataframe(df)
