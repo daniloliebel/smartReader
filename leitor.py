@@ -1,4 +1,3 @@
-from turtle import width
 from PyPDF2 import PdfReader
 import os
 import re
