@@ -220,5 +220,5 @@ if uploaded_files:
     dfTotais['IrrfWIN'] = dfTotais['IrrfWIN'].map('R$ {:,.2f}'.format)
     dfTotais['ValorWDO'] = dfTotais['ValorWDO'].map('R$ {:,.2f}'.format)
     dfTotais['IrrfWDO'] = dfTotais['IrrfWDO'].map('R$ {:,.2f}'.format)
-    st.text('Resultado total das notas acima')
+    st.subheader('Resultado total das notas')
     st.dataframe(dfTotais)
