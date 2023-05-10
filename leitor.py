@@ -79,14 +79,14 @@ def processarPdfGenial(nomeArquivo, reader):
             "cv": cv,
             "mercadoria": mercadoria.strip(),
             "vencimento": vencimento.strip(),
-            "quantidade": quantidade.strip(),
+            "quantidade": int(quantidade.strip()),
             "precoAjuste": float(precoAjuste.strip().replace('.', '').replace(',', '.')),
             "tipoNegocio": tipoNegocio.strip(),
             "valorOperacao": float(valorOperacao.strip().replace('.', '').replace(',', '.')),
             "dc": dc.strip(),
             "taxaOperacional": float(taxaOperacional.strip().replace('.', '').replace(',', '.'))
         }
-        print(linhaJson)
+        #print(linhaJson)
         tabelaArray.append(linhaJson)
 
 
@@ -133,25 +133,91 @@ def processarPdfGenial(nomeArquivo, reader):
     },
     "tabelaValores": tabelaArray
     }
-    print(infosNota)
+    #print(infosNota)
     #print(infosNota.get('valorNegocios'))
     #print(infosNota.get('irrf') + infosNota.get('valorNegocios'))
-    totalValorOperacao = 0
-    for linhaTabela in tabelaArray:
-        totalValorOperacao += linhaTabela.get('valorOperacao')
+    totalValorOperacao = 0        
 
-    print(totalValorOperacao)
+    #print(totalValorOperacao)
     return infosNota
 
 # Itera sobre a lista de arquivos
 uploaded_files = st.file_uploader("Escolha o(s) PDF a ser(em) processado(s)", type=['pdf'], accept_multiple_files=True)
-
+tabelaValTotalNotas = []
+tabelaPrinTotalNotas = []
 if uploaded_files:
     for file in uploaded_files:
         reader = PdfReader(file)
         pdfProcessado = processarPdfGenial(file.name, reader)
         dfPrincipal = pd.json_normalize(pdfProcessado.get('principal'))
         st.text(file.name)
+        dfPrincipal['irrf'] = dfPrincipal['irrf'].map('R${:,.2f}'.format)
+        dfPrincipal['valorNegocios'] = dfPrincipal['valorNegocios'].map('R${:,.2f}'.format)
+        dfPrincipal['taxasBMF'] = dfPrincipal['taxasBMF'].map('R${:,.2f}'.format)
+        dfPrincipal['totalDespesas'] = dfPrincipal['totalDespesas'].map('R${:,.2f}'.format)
+        dfPrincipal['totalLiquido'] = dfPrincipal['totalLiquido'].map('R${:,.2f}'.format)
         st.dataframe(dfPrincipal)
-        df = pd.json_normalize(pdfProcessado.get('tabelaValores'))
-        st.dataframe(df)
+        dfTabela = pd.json_normalize(pdfProcessado.get('tabelaValores'))
+        dfTabela['precoAjuste'] = dfTabela['precoAjuste'].map('R${:,.2f}'.format)
+        dfTabela['valorOperacao'] = dfTabela['valorOperacao'].map('R${:,.2f}'.format)
+        st.dataframe(dfTabela)
+        tabelaPrinTotalNotas.append(pdfProcessado.get('principal'))
+
+        if not tabelaValTotalNotas:
+            tabelaValTotalNotas = pdfProcessado.get('tabelaValores').copy()
+        else:
+            tabelaValTotalNotas = tabelaValTotalNotas + pdfProcessado.get('tabelaValores')
+
+    totalIrrf = 0
+    totalDespesas = 0
+    totalTaxasBMF = 0
+    totalLiquido = 0
+    print(tabelaPrinTotalNotas)
+    for linha in tabelaPrinTotalNotas:
+        totalIrrf += linha.get('irrf')
+        totalDespesas += linha.get('totalDespesas')
+        totalTaxasBMF += linha.get('taxasBMF')
+        totalLiquido += linha.get('totalLiquido')
+    totalValorOperacaoWIN = 0
+    totalQuantidadeWIN = 0
+    totalValorOperacaoWDO = 0
+    totalQuantidadeWDO = 0
+    for linha in tabelaValTotalNotas:
+        if linha.get('dc') == 'D' and 'WIN' in linha.get('mercadoria'):
+            totalValorOperacaoWIN -= linha.get('valorOperacao')
+        if linha.get('dc') == 'C' and 'WIN' in linha.get('mercadoria'):
+            totalValorOperacaoWIN += linha.get('valorOperacao')
+
+        if linha.get('dc') == 'D' and 'WDO' in linha.get('mercadoria'):
+            totalValorOperacaoWDO -= linha.get('valorOperacao')
+        if linha.get('dc') == 'C' and 'WDO' in linha.get('mercadoria'):
+            totalValorOperacaoWDO += linha.get('valorOperacao')
+        
+        if 'WIN' in linha.get('mercadoria'):
+            totalQuantidadeWIN += linha.get('quantidade')
+
+        if 'WDO' in linha.get('mercadoria'):
+            totalQuantidadeWDO += linha.get('quantidade')
+    taxasWIN = totalQuantidadeWIN * 0.26
+    irrfWIN = (totalValorOperacaoWIN - taxasWIN) * 0.01
+    taxasWDO = totalDespesas - taxasWIN
+    irrfWDO = totalIrrf - irrfWIN
+
+    resultadoValorWIN = totalValorOperacaoWIN - taxasWIN
+    resultadoIrrfWIN = irrfWIN
+
+    resultadoValorWDO = totalValorOperacaoWDO - taxasWDO
+    resultadoIrrfWDO = irrfWDO
+
+    resultadosFinais = {
+        "ValorWIN": resultadoValorWIN,
+        "IrrfWIN": resultadoIrrfWIN,
+        "ValorWDO": resultadoValorWDO,
+        "IrrfWDO": resultadoIrrfWDO,
+    }
+    dfTotais = pd.json_normalize(resultadosFinais)
+    dfTotais['ValorWIN'] = dfTotais['ValorWIN'].map('R$ {:,.2f}'.format)
+    dfTotais['IrrfWIN'] = dfTotais['IrrfWIN'].map('R$ {:,.2f}'.format)
+    dfTotais['ValorWDO'] = dfTotais['ValorWDO'].map('R$ {:,.2f}'.format)
+    dfTotais['IrrfWDO'] = dfTotais['IrrfWDO'].map('R$ {:,.2f}'.format)
+    st.dataframe(dfTotais)
