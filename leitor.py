@@ -239,10 +239,10 @@ if uploaded_files:
                                      "ValorWDO": resultadoValorWDO,
                                      "IrrfWDO": resultadoIrrfWDO 
                                     })
-    print(resultadoNotaPorData)
+    #print(resultadoNotaPorData)
     dfTotais = pd.DataFrame(resultadoNotaPorData)
 
-    print(dfTotais['ValorWIN'])
+    #print(dfTotais['ValorWIN'])
     dfTotais['ValorWIN'] = dfTotais['ValorWIN'].map('R$ {:,.2f}'.format)
     dfTotais['IrrfWIN'] = dfTotais['IrrfWIN'].map('R$ {:,.2f}'.format)
     dfTotais['ValorWDO'] = dfTotais['ValorWDO'].map('R$ {:,.2f}'.format)
