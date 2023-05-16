@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 
 #dataPregao = '05/05/2023'
 def taxas(dataPregao):
+    print(dataPregao)
     headers = {}
     cookies = {}
     request1 = requests.get("https://www.bmf.com.br/bmfbovespa/pages/boletim1/custos/carregaCombo.asp?idioma=1&tipo=ConsultarTamanhoContrato&mercado=2&mercadoria=WIN&dataPregao=" + dataPregao.replace('/', ''))
